@@ -90,7 +90,9 @@ URL: https://github.com/Huddle/Resemble.js
 		var ignoreColors = false;
 
 		function triggerDataUpdate(){
+			console.log('A');
 			var len = updateCallbackArray.length;
+			console.log(len);
 			var i;
 			for(i=0;i<len;i++){
 				if (typeof updateCallbackArray[i] === 'function'){
@@ -381,10 +383,33 @@ URL: https://github.com/Huddle/Resemble.js
 
 		function addBrightnessInfo(data){
 			data.brightness = getBrightness(data.r,data.g,data.b); // 'corrected' lightness
+			return data;
 		}
 
 		function addHueInfo(data){
 			data.h = getHue(data.r,data.g,data.b);
+		}
+		
+		function integral(img, pow){
+			console.log('---------------');
+			var width = img.width, height = img.height, data = img.data, i = 0;
+			var res = new Float64Array((width+1)*(height+1));
+			res.fill(0);
+			pow = pow || 2;
+		
+			for (var y = 1; y <= height; y++){
+				for (var x = 1; x <= width; x++){
+					res[x+y*width] = parseFloat(res[(x-1)+y*width]) + parseFloat(res[x+(y-1)*width]) +
+						parseFloat(0.3*data[i] + 0.59*data[i+1] + 0.11*data[i+2])/255.0;
+					i+=4;
+				}
+			}
+			for (var y = 1; y <= 2; y++){
+				for (var x = 1; x <= 50; x++){
+					console.log(res[x+y*width]);
+				}
+			}
+			return res;
 		}
 //------------------------------------------------------------------------------------------------------
 		function analyseImages(img1, img2, width, height){
@@ -584,8 +609,10 @@ URL: https://github.com/Huddle/Resemble.js
 						triggerDataUpdate();
 						return;
 					}
-					var maxwidth = images[0].width, minwidth = images[1].width,
-					    maxheight = images[0].height, minheight = images[1].height;
+					var maxwidth = Math.max(images[0].width, images[1].width);
+					var minwidth = Math.min(images[0].width, images[1].width);
+					var maxheight = Math.max(images[0].height, images[1].height);
+					var minheight = Math.min(images[0].height, images[1].height);
 
 					if( (images[0].width === images[1].width) && (images[0].height === images[1].height) ){
 						data.isSameDimensions = true;
@@ -594,8 +621,70 @@ URL: https://github.com/Huddle/Resemble.js
 					}
 
 					var big = normalise(images[0],maxwidth, maxheight).data;
-					var small = normalise(images[1],minwidth, minheight).data;
-					
+					var templ = normalise(images[1],minwidth, minheight).data;
+
+
+		var hiddenCanvas = document.createElement('canvas');
+		hiddenCanvas.width = minwidth;
+		hiddenCanvas.height = minheight;
+		var context = hiddenCanvas.getContext('2d');
+		var imgd = context.createImageData(minwidth,minheight);
+		var targetPix = imgd.data;
+/*
+		var R = new Uint32Array((minwidth+1)*(minheight+1));
+		R.fill(0);
+		var i=0;
+		for (var y = 1; y <= minheight; y++){
+			for (var x = 1; x <= minwidth; x++){
+				R[x+y*minwidth] = R[(x-1)+y*minwidth] + R[x+(y+1)*minwidth] + Math.pow(Math.floor(0.3*big[i] + 0.59*big[i+1] + 0.11*big[i+2]),2);
+				i+=4;
+			}
+		}
+*/
+		var R = integral(images[1],1);
+		var R2 = integral(images[0],1);
+		
+		console.log(R[1000]);
+		console.log(R[minheight*minwidth]);
+		//console.log(R2[300]);
+		console.log(R2[(maxheight*maxwidth)]);
+205 - 176		
+		console.log(R2[205+maxwidth*176]+R2[205+minwidth+1+maxwidth*(176+1+minheight)]
+		           -R2[205+minwidth+1+maxwidth*(176)]-R2[205+maxwidth*(176+1+minheight)]
+		           );
+
+						for (var i = 0; i < minwidth*minheight*4; i+=4){
+							var offset = i;
+							//targetPix[i]=255;targetPix[i+1]=0;targetPix[i+2]=0;targetPix[i+3]=128;
+							copyGrayScalePixel(targetPix, offset, addBrightnessInfo(getPixelInfo(templ, offset, 1)));
+						}
+					console.log('heloo');
+		data.getImageDataUrl = function(text){
+			console.log('heloo 22222222222222');
+			context.putImageData(imgd, 0, 0);
+			return hiddenCanvas.toDataURL("image/png");
+		};
+/*
+					var templMean = [0,0,0,0];
+					templ.forEach(function(currentValue,index){ templMean[index%4] += currentValue;});
+					templMean = templMean.map(function(currentValue,index){ return currentValue*4/ templ.length;});
+console.log(JSON.stringify(templMean));
+					var templSdv = [0,0,0,0];
+					templ.forEach(function(currentValue,index){ templSdv[index%4] += Math.pow(currentValue - templMean[index%4], 2);});
+					templSdv = templSdv.map(function(currentValue,index){ return Math.sqrt(currentValue*4/ templ.length);});  
+console.log(JSON.stringify(templSdv));
+					var templNorm = templSdv[0]*templSdv[0] + templSdv[1]*templSdv[1] + templSdv[2]*templSdv[2] + templSdv[3]*templSdv[3];
+					var templSum2 = templNorm + templMean[0]*templMean[0] + templMean[1]*templMean[1] + templMean[2]*templMean[2] + templMean[3]*templMean[3];
+console.log(templNorm);
+console.log(templSum2);
+					var invArea = 1/(minheight * minwidth);					
+					templNorm = Math.sqrt(templSum2) / Math.sqrt( invArea );
+					templSum2 /= invArea;
+  console.log(invArea);
+ console.log(templNorm);
+ console.log(templSum2);
+ */
+					/*
 					var pixel2 = getPixelInfo(small, 0, 2);
 					//var pixels2 = [].slice.call(small, 0, minwidth).join('-')
 					console.log([].slice.call(small, 0, minwidth).length);
@@ -615,7 +704,7 @@ URL: https://github.com/Huddle/Resemble.js
 							}
 						}
 					}
-                    
+                    */
 					triggerDataUpdate();
 				}
 			}
@@ -709,9 +798,13 @@ URL: https://github.com/Huddle/Resemble.js
 			compareTo: function(secondFileData){
 				return getCompareApi(secondFileData);
 			},
-			localisePattern: function(secondFileData){
+			localisePattern: function(secondFileData, callback){
+				console.log('localisePattern deb');
+				updateCallbackArray.push(callback);
+				console.log('localisePattern mid');
 				searchBestMatchPercentage(fileData, secondFileData);
-				return getCompareApi(secondFileData);
+				console.log('localisePattern fin');
+				//return getCompareApi(callback);
 			}
 		};
 

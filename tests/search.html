@@ -40,9 +40,10 @@ document.querySelector('#a').src = people_src;
 document.querySelector('#b').src = people3_src;
 // 205 - 176
 
-resemble(people_src).localisePattern(people3_src).onComplete(function(data){
-    console.log(data);
-    //document.querySelector('#c').src = data.getImageDataUrl();
+resemble(people_src).localisePattern(people3_src/*).onComplete(*/,function(data){
+    console.log('coucou');
+    console.log(JSON.stringify(data));
+    document.querySelector('#c').src = data.getImageDataUrl();
     delete data.getImageDataUrl;
     //console.log(JSON.stringify(data,null,4));
 });
