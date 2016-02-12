@@ -90,9 +90,7 @@ URL: https://github.com/Huddle/Resemble.js
 		var ignoreColors = false;
 
 		function triggerDataUpdate(){
-			console.log('A');
 			var len = updateCallbackArray.length;
-			console.log(len);
 			var i;
 			for(i=0;i<len;i++){
 				if (typeof updateCallbackArray[i] === 'function'){
@@ -391,25 +389,28 @@ URL: https://github.com/Huddle/Resemble.js
 		}
 		
 		function integral(img, pow){
-			console.log('---------------');
-			var width = img.width, height = img.height, data = img.data, i = 0;
-			var res = new Float64Array((width+1)*(height+1));
+			var width = img.width + 1, height = img.height + 1, data = img.data, i = 0;
+			var res = new Float64Array( width * height );
 			res.fill(0);
 			pow = pow || 2;
 		
-			for (var y = 1; y <= height; y++){
-				for (var x = 1; x <= width; x++){
-					res[x+y*width] = parseFloat(res[(x-1)+y*width]) + parseFloat(res[x+(y-1)*width]) +
-						parseFloat(0.3*data[i] + 0.59*data[i+1] + 0.11*data[i+2])/255.0;
+			for (var y = 1; y < height; y++){
+				for (var x = 1; x < width; x++){
+					res[x+y*width] = res[x-1+y*width] + res[x+(y-1)*width] - res[x-1+(y-1)*width] +
+						//Math.pow(Math.floor(0.3*data[i] + 0.59*data[i+1] + 0.11*data[i+2]), pow);
+						Math.pow(Math.floor(0.33*data[i] + 0.33*data[i+1] + 0.33*data[i+2]), pow);
 					i+=4;
 				}
 			}
-			for (var y = 1; y <= 2; y++){
-				for (var x = 1; x <= 50; x++){
-					console.log(res[x+y*width]);
-				}
-			}
-			return res;
+			return { "matrice": res, "width": width, "height": height};
+		}
+		
+		function getIntegralSum(r, x, y, w, h){
+			var m = r.matrice, mw = r.width, mh = r.height;
+			return	m[x+y*mw] +
+					m[x+w+(y+h)*mw] -
+					m[x+(y+h)*mw] -
+					m[x+w+(y)*mw];
 		}
 //------------------------------------------------------------------------------------------------------
 		function analyseImages(img1, img2, width, height){
@@ -641,29 +642,15 @@ URL: https://github.com/Huddle/Resemble.js
 			}
 		}
 */
-		var R = integral(images[1],1);
-		var R2 = integral(images[0],1);
+		var R = integral(images[1],2);
+		var R2 = integral(images[0],2);
 		
-		console.log(R[1000]);
-		console.log(R[minheight*minwidth]);
-		//console.log(R2[300]);
-		console.log(R2[(maxheight*maxwidth)]);
-205 - 176		
-		console.log(R2[205+maxwidth*176]+R2[205+minwidth+1+maxwidth*(176+1+minheight)]
-		           -R2[205+minwidth+1+maxwidth*(176)]-R2[205+maxwidth*(176+1+minheight)]
-		           );
+		var R3 = integral(images[1],1);
+		var R4 = integral(images[0],1);
 
-						for (var i = 0; i < minwidth*minheight*4; i+=4){
-							var offset = i;
-							//targetPix[i]=255;targetPix[i+1]=0;targetPix[i+2]=0;targetPix[i+3]=128;
-							copyGrayScalePixel(targetPix, offset, addBrightnessInfo(getPixelInfo(templ, offset, 1)));
-						}
-					console.log('heloo');
-		data.getImageDataUrl = function(text){
-			console.log('heloo 22222222222222');
-			context.putImageData(imgd, 0, 0);
-			return hiddenCanvas.toDataURL("image/png");
-		};
+		//console.log(R2[300]);
+//205 - 176		
+
 /*
 					var templMean = [0,0,0,0];
 					templ.forEach(function(currentValue,index){ templMean[index%4] += currentValue;});
@@ -684,6 +671,58 @@ console.log(templSum2);
  console.log(templNorm);
  console.log(templSum2);
  */
+
+		console.log(getIntegralSum(R, 0, 0, minwidth, minheight));
+		console.log(getIntegralSum(R2, 205, 176, minwidth, minheight));
+		console.log(getIntegralSum(R2, 0, 0, maxwidth, maxheight));
+		var val = getIntegralSum(R2, 0, 0, maxwidth, maxheight);
+		var vala  = getIntegralSum(R, 0, 0, minwidth, minheight);
+		var sum;
+		
+		var coords = [];
+		for (var y=0; y < maxheight; y ++){
+			for (var x=0; x < maxwidth; x ++){
+			//double num = rrow[j], t;
+			//double wndMean2 = 0, wndSum2 = 0;
+				sum = Math.abs(getIntegralSum(R2, x, y, minwidth, minheight) - vala);
+				if (sum < val ){
+					coords.unshift({"x" : x, "y" : y, "sum": sum});
+					val = sum;
+				}
+			}
+		}
+		/*
+		var coords = {"x":0,"y":0};
+		for (var y=0; y < maxheight; y ++){
+			for (var x=0; x < maxwidth; x ++){
+				sum = Math.abs(getIntegralSum(R2, x, y, minwidth, minheight) - vala);
+				if (sum < val ){
+					coords.x = x; coords.y = y;
+					val = sum;
+				}
+			}
+		}*/		
+		
+		console.log(JSON.stringify(coords,null,4));
+		console.log('#########');
+		
+						for (var i = 0; i < minwidth*minheight*4; i+=4){
+							var offset = i;
+							//targetPix[i]=255;targetPix[i+1]=0;targetPix[i+2]=0;targetPix[i+3]=128;
+							copyGrayScalePixel(targetPix, offset, addBrightnessInfo(getPixelInfo(templ, offset, 1)));
+						}
+
+		data.getImageDataUrl = function(text){
+
+			context.putImageData(imgd, 0, 0);
+			//context.putImageData(big,273,220);
+			return hiddenCanvas.toDataURL("image/png");
+		};
+
+ 
+ 
+ 
+ 
 					/*
 					var pixel2 = getPixelInfo(small, 0, 2);
 					//var pixels2 = [].slice.call(small, 0, minwidth).join('-')
