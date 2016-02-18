@@ -397,8 +397,8 @@ URL: https://github.com/Huddle/Resemble.js
 			for (var y = 1; y < height; y++){
 				for (var x = 1; x < width; x++){
 					res[x+y*width] = res[x-1+y*width] + res[x+(y-1)*width] - res[x-1+(y-1)*width] +
-						//Math.pow(Math.floor(0.3*data[i] + 0.59*data[i+1] + 0.11*data[i+2]), pow);
-						Math.pow(Math.floor(0.33*data[i] + 0.33*data[i+1] + 0.33*data[i+2]), pow);
+						Math.pow(Math.floor(0.3*data[i] + 0.59*data[i+1] + 0.11*data[i+2]), pow);
+						//Math.pow(Math.floor(0.33*data[i] + 0.33*data[i+1] + 0.33*data[i+2]), pow);
 					i+=4;
 				}
 			}
@@ -678,19 +678,36 @@ console.log(templSum2);
 		var val = getIntegralSum(R2, 0, 0, maxwidth, maxheight);
 		var vala  = getIntegralSum(R, 0, 0, minwidth, minheight);
 		var sum;
-		
+		console.log('minwidth*minheight*255 :'+(minwidth*minheight*255));
 		var coords = [];
+		var resu = vala;
 		for (var y=0; y < maxheight; y ++){
 			for (var x=0; x < maxwidth; x ++){
 			//double num = rrow[j], t;
 			//double wndMean2 = 0, wndSum2 = 0;
 				sum = Math.abs(getIntegralSum(R2, x, y, minwidth, minheight) - vala);
-				if (sum < val ){
-					coords.unshift({"x" : x, "y" : y, "sum": sum});
-					val = sum;
+				if (sum < (minwidth*minheight*255) ){
+					//
+					
+					var cal = 0;
+					for (var j = 0; j < minheight; j++){
+						for (var i = 0; i < minwidth; i++){
+						var da = (j*minwidth +i)*4;
+						var db = ((y+j)*maxwidth+(x+i))*4;
+					
+						cal += Math.abs( Math.floor(0.3*images[1].data[da] + 0.59*images[1].data[da+1] + 0.11*images[1].data[da+2])
+						          - Math.floor(0.3*images[0].data[db] + 0.59*images[0].data[db+1] + 0.11*images[0].data[db+2]));
+						}
+					}
+					//console.log(JSON.stringify({"x" : x, "y" : y, "sum": sum, "cal": cal}));
+					if (cal < resu){
+						resu = cal;
+						coords.unshift({"x" : x, "y" : y, "sum": sum, "cal": cal});
+					}
 				}
 			}
 		}
+		
 		/*
 		var coords = {"x":0,"y":0};
 		for (var y=0; y < maxheight; y ++){
@@ -704,6 +721,7 @@ console.log(templSum2);
 		}*/		
 		
 		console.log(JSON.stringify(coords,null,4));
+		console.log(coords.length);
 		console.log('#########');
 		
 						for (var i = 0; i < minwidth*minheight*4; i+=4){
